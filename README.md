@@ -1,101 +1,146 @@
-# Instagram Profile Tagger
+# 📸 Instagram Profile Tagger
 
-Aplicación local para importar, organizar y etiquetar perfiles de Instagram a partir de URLs o nombres de usuario.
-
-Permite gestionar una base de datos simple de perfiles, añadir etiquetas personalizadas (ej: *alto, musculoso, fitness*), filtrar perfiles por etiquetas y obtener automáticamente la foto de perfil mediante scraping.
+Una aplicación full-stack para **importar, organizar y etiquetar perfiles de Instagram** desde URLs o usernames. Permite crear etiquetas personalizadas, filtrar perfiles y preparar datos para análisis o automatización con Playwright.
 
 ---
 
-## 🚀 Features
+## ✨ Características
 
-- Importación de URLs de Instagram o usernames
-- Extracción automática de usernames
-- Scraping básico de foto de perfil (Playwright)
-- Sistema de etiquetas personalizables
-- Filtrado de perfiles por tags
-- Persistencia en archivo JSON (sin base de datos SQL)
-- Interfaz web simple en React
+- 📥 Importación de perfiles desde archivos o texto
+- 🧠 Extracción automática de usernames de Instagram
+- 🏷️ Sistema de etiquetas personalizadas (alto, bajo, musculoso, etc.)
+- 🔍 Filtro de perfiles por etiquetas
+- 💾 Base de datos local en JSON
+- 🤖 Preparado para automatización con Playwright
+- ⚡ Frontend rápido con React + Vite
 
 ---
 
-## 🧱 Tech Stack
+## 🧱 Stack
 
-### Frontend
-- React + Vite
-- Tailwind CSS
-
-### Backend
-- Node.js
-- Express
-- Playwright (scraping)
-
-### Storage
-- JSON file (`db.json`)
+- Frontend: React + Vite + TailwindCSS
+- Backend: Node.js + Express
+- Automatización: Playwright
+- Base de datos: JSON local
 
 ---
 
 ## 📁 Project Structure
-instagram-profile-tagger/
+
+```txt
+project-root/
 ├── backend/
-│ ├── data/db.json
-│ ├── services/
-│ ├── utils/
-│ └── server.js
+│   ├── data/              # JSON database
+│   ├── services/          # Business logic
+│   ├── utils/             # Helpers
+│   ├── node_modules/
+│   └── server.js          # Express API
 │
 ├── frontend/
-│ ├── src/
-│ ├── components/
-│ └── App.jsx
+│   ├── src/
+│   │   ├── components/
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+│
+└── README.md
+```
+
 ---
 
-## ⚙️ Installation
+## 🚀 Instalación
 
-### 1. Clone repo
+### Clonar el repositorio
 
-bash>>
-git clone https://github.com/your-username/instagram-profile-tagger.git
-cd instagram-profile-tagger
-2. Install backend
+```bash
+git clone <repo-url>
+cd project-root
+```
+
+### Backend
+
+```bash
 cd backend
 npm install
-npx playwright install
-3. Install frontend
-cd ../frontend
+```
+
+### Frontend
+
+```bash
+cd frontend
 npm install
-▶️ Run project
-Backend
+```
+
+---
+
+## ▶️ Ejecución
+
+### Backend (Express)
+
+```bash
 cd backend
 npm run dev
-Frontend
+```
+
+👉 http://localhost:3001
+
+---
+
+### Frontend (Vite)
+
+```bash
 cd frontend
 npm run dev
+```
 
-Or run both (if configured):
+👉 http://localhost:5173
 
-npm run dev
-📦 Data format
+---
 
-Stored in backend/data/db.json:
+## 🔗 API
 
-{
-  "profiles": [
-    {
-      "username": "example.user",
-      "tags": ["fitness", "alto"],
-      "imageUrl": "https://..."
-    }
-  ],
-  "tags": ["fitness", "alto", "musculoso"]
-}
-🧠 Future improvements
-Tag filtering UI avanzado
-Search de perfiles
-Notas por perfil
-Favoritos
-Scraping en background queue
-Exportación CSV / JSON
-Modo desktop con Electron
-Login multiusuario
-⚠️ Disclaimer
+| Método | Endpoint        | Descripción                |
+|--------|----------------|----------------------------|
+| GET    | /profiles       | Obtener perfiles           |
+| POST   | /profiles       | Añadir perfiles            |
+| PUT    | /profiles/:id   | Editar perfil o etiquetas  |
+| DELETE | /profiles/:id   | Eliminar perfil           |
 
-Este proyecto es para uso personal y educativo. El scraping de Instagram puede estar sujeto a sus términos de uso.
+---
+
+## 🧠 Cómo funciona
+
+1. Importas URLs o usernames de Instagram
+2. El backend normaliza los datos
+3. Se guardan en JSON local
+4. Puedes añadir etiquetas manualmente
+5. Filtras perfiles por etiquetas
+
+---
+
+## 🤖 Playwright
+
+Base preparada para automatización:
+
+- Scraping de perfiles públicos
+- Extracción de usernames
+- Validación de URLs
+- Posible expansión a análisis de datos
+
+---
+
+## 📌 Roadmap
+
+- [ ] Migrar a SQLite o MongoDB
+- [ ] Login de usuarios
+- [ ] UI de filtros avanzada
+- [ ] Scraper completo con Playwright
+- [ ] Exportación CSV / Excel
+
+---
+
+## ⚠️ Nota
+
+Proyecto educativo. Respeta los términos de uso de Instagram.
