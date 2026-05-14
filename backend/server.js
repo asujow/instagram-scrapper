@@ -1,3 +1,5 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import fs from "fs";
@@ -5,23 +7,18 @@ import fs from "fs";
 import { extractUsernames } from "./utils/extractUsernames.js";
 import { scrapeProfilePhoto } from "./services/instagramScraper.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = 3001;
 
-const DB_PATH = "./data/db.json";
+const DB_PATH = path.join(__dirname, "./data/db.json");
 
 console.log("SERVER STARTING...");
 
 app.use(cors());
 app.use(express.json());
-
-function readDB() {
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-}
-
-function writeDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
 
 app.get("/profiles", (req, res) => {
   const db = readDB();
@@ -29,32 +26,60 @@ app.get("/profiles", (req, res) => {
 });
 
 app.post("/import", async (req, res) => {
-  const { text } = req.body;
+  try {
+    const { text } = req.body;
 
-  const usernames = extractUsernames(text);
+    if (!text || typeof text !== "string") {
+      return res.status(400).json({
+        error: "Invalid text input"
+      });
+    }
 
-  const db = readDB();
+    const usernames =
+      extractUsernames(text);
 
-  for (const username of usernames) {
-    const exists = db.profiles.find((p) => p.username === username);
+    if (!usernames.length) {
+      return res.status(400).json({
+        error: "No valid usernames found"
+      });
+    }
 
-    if (exists) continue;
+    const db = readDB();
 
-    const scraped = await scrapeProfilePhoto(username);
+    let added = 0;
 
-    db.profiles.push({
-      username,
-      tags: [],
-      imageUrl: scraped.imageUrl
+    for (const username of usernames) {
+      const exists = db.profiles.find(
+        (p) => p.username === username
+      );
+
+      if (exists) continue;
+
+      db.profiles.push({
+        username,
+        tags: [],
+        imageUrl: null,
+        createdAt:
+          new Date().toISOString()
+      });
+
+      added++;
+    }
+
+    writeDB(db);
+
+    res.json({
+      success: true,
+      added,
+      total: db.profiles.length
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Import failed"
     });
   }
-
-  writeDB(db);
-
-  res.json({
-    success: true,
-    imported: usernames.length
-  });
 });
 
 app.post("/profiles/:username/tags", (req, res) => {
@@ -78,6 +103,115 @@ app.post("/profiles/:username/tags", (req, res) => {
   res.json(profile);
 });
 
+app.post("/import-json", (req, res) => {
+  try {
+    const data = req.body;
+
+    const valid =
+      validateDBStructure(data);
+
+    if (!valid) {
+      return res.status(400).json({
+        error: "Invalid DB format"
+      });
+    }
+
+    writeDB(data);
+
+    res.json({
+      success: true
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "JSON import failed"
+    });
+  }
+});
+
+ensureDB();
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });
+
+function ensureDB() {
+  const dataDir = path.join(
+    __dirname,
+    "data"
+  );
+
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, {
+      recursive: true
+    });
+  }
+
+  if (!fs.existsSync(DB_PATH)) {
+    const initialDB = {
+      profiles: [],
+      tags: [],
+      meta: {
+        createdAt:
+          new Date().toISOString(),
+        updatedAt:
+          new Date().toISOString()
+      }
+    };
+
+    fs.writeFileSync(
+      DB_PATH,
+      JSON.stringify(
+        initialDB,
+        null,
+        2
+      )
+    );
+  }
+}
+
+function readDB() {
+  try {
+    ensureDB();
+
+    const raw = fs.readFileSync(
+      DB_PATH,
+      "utf8"
+    );
+
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("DB READ ERROR:", err);
+
+    return {
+      profiles: [],
+      tags: [],
+      meta: {}
+    };
+  }
+}
+
+function writeDB(data) {
+  try {
+    if (!data.meta) {
+      data.meta = {};
+    }
+
+    data.meta.updatedAt =
+      new Date().toISOString();
+
+    fs.writeFileSync(
+      DB_PATH,
+      JSON.stringify(data, null, 2)
+    );
+  } catch (err) {
+    console.error("DB WRITE ERROR:", err);
+  }
+}
+
+function validateDBStructure(data) {
+  return (
+    data &&
+    typeof data === "object" &&
+    Array.isArray(data.profiles) &&
+    Array.isArray(data.tags)
+  );
+}

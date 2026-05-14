@@ -131,16 +131,6 @@ Base preparada para automatización:
 
 ---
 
-## 📌 Roadmap
-
-- [ ] Migrar a SQLite o MongoDB
-- [ ] Login de usuarios
-- [ ] UI de filtros avanzada
-- [ ] Scraper completo con Playwright
-- [ ] Exportación CSV / Excel
-
----
-
 ## ⚠️ Nota
 
 Proyecto educativo. Respeta los términos de uso de Instagram.

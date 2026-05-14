@@ -1,24 +1,74 @@
 export function extractUsernames(text) {
-  const regex = /instagram\.com\/([^?\/\s]+)/g;
-
-  const usernames = [];
-
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    usernames.push(match[1]);
+  if (!text || typeof text !== "string") {
+    return [];
   }
+
+  const usernames = new Set();
 
   const lines = text
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    .map((line) => line.trim())
     .filter(Boolean);
 
   for (const line of lines) {
-    if (!line.includes("instagram.com")) {
-      usernames.push(line);
+    let username = line;
+
+    // Instagram URL
+    if (line.includes("instagram.com")) {
+      try {
+        const url = new URL(
+          line.startsWith("http")
+            ? line
+            : `https://${line}`
+        );
+
+        const parts = url.pathname
+          .split("/")
+          .filter(Boolean);
+
+        if (!parts.length) continue;
+
+        const candidate = parts[0];
+
+        // Skip invalid Instagram routes
+        const blockedRoutes = [
+          "p",
+          "reel",
+          "stories",
+          "explore",
+          "accounts"
+        ];
+
+        if (
+          blockedRoutes.includes(
+            candidate.toLowerCase()
+          )
+        ) {
+          continue;
+        }
+
+        username = candidate;
+      } catch {
+        continue;
+      }
     }
+
+    // Clean username
+    username = username
+      .replace(/^@/, "")
+      .trim()
+      .toLowerCase();
+
+    // Instagram username validation
+    const valid =
+      /^[a-zA-Z0-9._]{1,30}$/.test(
+        username
+      );
+
+    if (!valid) continue;
+
+    usernames.add(username);
   }
 
-  return [...new Set(usernames)];
+  return [...usernames];
 }

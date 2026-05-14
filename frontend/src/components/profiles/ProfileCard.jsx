@@ -1,0 +1,33 @@
+export default function ProfileCard({
+  profile
+}) {
+  return (
+    <div className="bg-white border rounded-2xl p-5 flex gap-4 items-center hover:shadow-md transition">
+      <img
+        src={
+          profile.imageUrl ||
+          "https://placehold.co/100x100"
+        }
+        alt={profile.username}
+        className="w-24 h-24 rounded-full object-cover border"
+      />
+
+      <div className="flex-1">
+        <div className="text-xl font-bold">
+          @{profile.username}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-3">
+          {profile.tags.map((tag) => (
+            <span
+              key={tag}
+              className="bg-zinc-200 text-zinc-800 px-3 py-1 rounded-full text-sm"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
