@@ -1,4 +1,6 @@
-import ImportBox from "../components/import/ImportBox";
+import ManualImport from "../components/import/ManualImport";
+import TxtUpload from "../components/import/TxtUpload";
+import JsonUpload from "../components/import/JsonUpload";
 
 export default function ImportPage({
   onImport
@@ -15,7 +17,14 @@ export default function ImportPage({
         </p>
       </div>
 
-      <ImportBox onImport={onImport} />
+      <div className="bg-white border rounded-2xl p-6 flex flex-col gap-6">
+        <ManualImport onImport={onImport} />
+
+        <div className="border-t pt-4 flex flex-col gap-4">
+          <TxtUpload onImport={onImport} />
+          <JsonUpload onImport={onImport} />
+        </div>
+      </div>
     </div>
   );
 }
