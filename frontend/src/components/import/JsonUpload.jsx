@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 
 export default function JsonUpload({ onImport }) {
@@ -24,7 +25,7 @@ export default function JsonUpload({ onImport }) {
       const text = await file.text();
       const json = JSON.parse(text);
 
-      const res = await fetch("/api/import-json", {
+      const res = await fetch("/api/import/json", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

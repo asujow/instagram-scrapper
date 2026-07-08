@@ -1,6 +1,7 @@
 import ManualImport from "../components/import/ManualImport";
 import TxtUpload from "../components/import/TxtUpload";
 import JsonUpload from "../components/import/JsonUpload";
+import React from "react";
 
 export default function ImportPage({
   onImport

@@ -1,3 +1,5 @@
+import React from "react";
+
 import { useEffect, useState } from "react";
 
 import Layout from "./components/layout/Layout";
@@ -9,12 +11,12 @@ import TagsPage from "./pages/TagsPage";
 
 export default function App() {
   const [profiles, setProfiles] = useState([]);
+  const [selectedProfiles, setSelectedProfiles] = useState([]);
   const [page, setPage] = useState("profiles");
 
   async function loadProfiles() {
     const res = await fetch("/api/profiles");
     const data = await res.json();
-
     setProfiles(data);
   }
 
@@ -24,9 +26,21 @@ export default function App() {
 
   const allTags = [
     ...new Set(
-      profiles.flatMap((profile) => profile.tags || [])
+      profiles.flatMap((p) => p.tags || [])
     )
   ];
+
+  function toggleProfile(username) {
+    setSelectedProfiles((prev) =>
+      prev.includes(username)
+        ? prev.filter((u) => u !== username)
+        : [...prev, username]
+    );
+  }
+
+  function clearSelection() {
+    setSelectedProfiles([]);
+  }
 
   function renderPage() {
     switch (page) {
@@ -48,6 +62,7 @@ export default function App() {
           <TagsPage
             tags={allTags}
             profiles={profiles}
+            onRefresh={loadProfiles}
           />
         );
 
@@ -57,6 +72,9 @@ export default function App() {
           <ProfilesPage
             profiles={profiles}
             tags={allTags}
+            selectedProfiles={selectedProfiles}
+            onToggleProfile={toggleProfile}
+            onClearSelection={clearSelection}
           />
         );
     }

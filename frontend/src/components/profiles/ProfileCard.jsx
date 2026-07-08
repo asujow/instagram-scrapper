@@ -1,8 +1,25 @@
+import React from "react";
 export default function ProfileCard({
-  profile
+  profile,
+  selected,
+  onSelect
 }) {
   return (
-    <div className="bg-white border rounded-2xl p-5 flex gap-4 items-center hover:shadow-md transition">
+    <div
+      className={`bg-white border rounded-2xl p-5 flex gap-4 items-center hover:shadow-md transition ${
+        selected
+          ? "border-black ring-2 ring-black"
+          : ""
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={() =>
+          onSelect(profile.username)
+        }
+      />
+
       <img
         src={
           profile.imageUrl ||
