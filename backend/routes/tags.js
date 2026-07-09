@@ -1,127 +1,62 @@
 import express from "express";
 
-import {
-  readDB,
-  writeDB
-} from "../utils/db.js";
+import { readDB, writeDB } from "../utils/db.js";
 
 const router = express.Router();
 
+function normalizeTag(tag) {
+  return typeof tag === "string" ? tag.trim().toLowerCase() : "";
+}
+
+// GET /api/tags — list all tags
 router.get("/", (req, res) => {
   const db = readDB();
-
   res.json(db.tags);
 });
 
+// POST /api/tags — create a tag
 router.post("/", (req, res) => {
   try {
-    const { tag } = req.body;
+    const normalized = normalizeTag(req.body.tag);
 
-    if (!tag?.trim()) {
-      return res.status(400).json({
-        error: "Invalid tag"
-      });
+    if (!normalized) {
+      return res.status(400).json({ error: "Invalid tag" });
     }
-
-    const normalized =
-      tag.trim().toLowerCase();
 
     const db = readDB();
 
     if (!db.tags.includes(normalized)) {
       db.tags.push(normalized);
+      writeDB(db);
     }
 
-    writeDB(db);
-
-    res.json({
-      success: true,
-      tags: db.tags
-    });
+    res.json({ success: true, tags: db.tags });
   } catch (err) {
-    res.status(500).json({
-      error: "Failed creating tag"
-    });
+    console.error(err);
+    res.status(500).json({ error: "Failed creating tag" });
   }
 });
 
+// DELETE /api/tags/:tag — delete a tag and remove it from every profile
 router.delete("/:tag", (req, res) => {
   try {
-    const tag =
-      req.params.tag.toLowerCase();
+    const tag = normalizeTag(req.params.tag);
 
     const db = readDB();
 
-    db.tags = db.tags.filter(
-      (t) => t !== tag
-    );
-
-    db.profiles = db.profiles.map(
-      (profile) => ({
-        ...profile,
-        tags: profile.tags.filter(
-          (t) => t !== tag
-        )
-      })
-    );
+    db.tags = db.tags.filter((t) => t !== tag);
+    db.profiles = db.profiles.map((profile) => ({
+      ...profile,
+      tags: profile.tags.filter((t) => t !== tag)
+    }));
 
     writeDB(db);
 
-    res.json({
-      success: true
-    });
+    res.json({ success: true });
   } catch (err) {
-    res.status(500).json({
-      error: "Failed deleting tag"
-    });
+    console.error(err);
+    res.status(500).json({ error: "Failed deleting tag" });
   }
-});
-
-router.post("/tags", (req, res) => {
-  const { tag } = req.body;
-
-  if (!tag) {
-    return res.status(400).json({
-      error: "Missing tag"
-    });
-  }
-
-  const db = readDB();
-
-  if (!db.tags.includes(tag)) {
-    db.tags.push(tag);
-  }
-
-  writeDB(db);
-
-  res.json({
-    success: true
-  });
-});
-
-router.delete("/tags/:tag", (req, res) => {
-  const { tag } = req.params;
-
-  const db = readDB();
-
-  db.tags = db.tags.filter(
-    (t) => t !== tag
-  );
-
-  db.profiles = db.profiles.map(
-    (profile) => ({
-      ...profile,
-      tags: profile.tags.filter(
-        (t) => t !== tag
-      )
-    })
-  );
-
-  writeDB(db);
-
-  res.json({
-    success: true
-  });
 });
 
 export default router;

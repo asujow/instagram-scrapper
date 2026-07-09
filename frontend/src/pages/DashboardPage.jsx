@@ -30,7 +30,7 @@ export default function DashboardPage({
           title="Tagged Profiles"
           value={
             profiles.filter(
-              (p) => p.tags.length > 0
+              (p) => (p.tags || []).length > 0
             ).length
           }
         />

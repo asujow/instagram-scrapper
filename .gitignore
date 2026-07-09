@@ -149,3 +149,4 @@ playwright-report
 test-results
 .cache
 .DS_Store
+backend/data/db.json

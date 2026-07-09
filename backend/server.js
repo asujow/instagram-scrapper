@@ -8,8 +8,7 @@ import importRoutes from "./routes/import.js";
 import { ensureDB } from "./utils/db.js";
 
 const app = express();
-
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -21,7 +20,5 @@ app.use("/api/tags", tagsRoutes);
 app.use("/api/import", importRoutes);
 
 app.listen(PORT, () => {
-  console.log(
-    `Backend running on http://localhost:${PORT}`
-  );
+  console.log(`Backend running on http://localhost:${PORT}`);
 });
