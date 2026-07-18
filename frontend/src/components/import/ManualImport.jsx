@@ -31,7 +31,7 @@ export default function ManualImport({ onImport }) {
 
       setSuccess(`Imported ${data.added} profiles`);
       setText("");
-      onImport();
+      await onImport(data);
     } catch (err) {
       setError(err.message);
     }

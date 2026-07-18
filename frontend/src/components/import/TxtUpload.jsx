@@ -63,7 +63,7 @@ export default function TxtUpload({
         `Imported ${data.added} profiles`
       );
 
-      onImport();
+      await onImport(data);
     } catch (err) {
       setError(
         err.message ||

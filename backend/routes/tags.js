@@ -1,6 +1,6 @@
 import express from "express";
 
-import { readDB, writeDB } from "../utils/db.js";
+import { readDB, writeDB, RESERVED_TAGS } from "../utils/db.js";
 
 const router = express.Router();
 
@@ -23,6 +23,12 @@ router.post("/", (req, res) => {
       return res.status(400).json({ error: "Invalid tag" });
     }
 
+    if (RESERVED_TAGS.includes(normalized)) {
+      return res.status(400).json({
+        error: `"${normalized}" is a reserved tag managed automatically — use the dedicated controls on a profile instead of creating it here.`
+      });
+    }
+
     const db = readDB();
 
     if (!db.tags.includes(normalized)) {
@@ -41,6 +47,12 @@ router.post("/", (req, res) => {
 router.delete("/:tag", (req, res) => {
   try {
     const tag = normalizeTag(req.params.tag);
+
+    if (RESERVED_TAGS.includes(tag)) {
+      return res.status(400).json({
+        error: `"${tag}" is a reserved tag and can't be deleted globally — remove it from each profile individually instead.`
+      });
+    }
 
     const db = readDB();
 

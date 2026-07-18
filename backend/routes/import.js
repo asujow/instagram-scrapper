@@ -5,7 +5,11 @@ import { extractUsernames } from "../utils/extractUsernames.js";
 
 const router = express.Router();
 
-// POST /api/import — bulk import from pasted text or a .txt file
+// POST /api/import — bulk import from pasted text or a .txt file.
+// Just saves the profiles and responds — it does NOT download photos.
+// Returns `newUsernames` so the frontend can ask the user whether to
+// kick off a photo download for them (via
+// POST /api/profiles/refresh-photos) as a separate, explicit step.
 router.post("/", async (req, res) => {
   try {
     const { text } = req.body;
@@ -23,7 +27,7 @@ router.post("/", async (req, res) => {
     const db = readDB();
     const existing = new Set(db.profiles.map((p) => p.username));
 
-    let added = 0;
+    const newUsernames = [];
 
     for (const username of usernames) {
       if (existing.has(username)) continue;
@@ -31,19 +35,20 @@ router.post("/", async (req, res) => {
       db.profiles.push({
         username,
         tags: [],
-        imageUrl: null,
+        imagePath: null,
         createdAt: new Date().toISOString()
       });
 
       existing.add(username);
-      added++;
+      newUsernames.push(username);
     }
 
     writeDB(db);
 
     res.json({
       success: true,
-      added,
+      added: newUsernames.length,
+      newUsernames,
       total: db.profiles.length
     });
   } catch (err) {

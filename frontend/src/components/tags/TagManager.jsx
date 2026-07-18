@@ -2,10 +2,17 @@ import React from "react";
 import { useState } from "react";
 
 import TagChip from "../profiles/TagChip";
+import { RESERVED_TAGS } from "../../utils/specialTags";
 
+// The "deleted" and "alt-account" tags are managed through dedicated
+// controls on a profile (see ProfileDetailPage and the bulk actions on
+// ProfilesPage) rather than here, so they're left out of this
+// general-purpose create/delete list entirely.
 export default function TagManager({ tags, profiles, onRefresh }) {
   const [newTag, setNewTag] = useState("");
   const [error, setError] = useState("");
+
+  const manageableTags = tags.filter((tag) => !RESERVED_TAGS.includes(tag));
 
   async function createTag() {
     if (!newTag.trim()) return;
@@ -18,8 +25,10 @@ export default function TagManager({ tags, profiles, onRefresh }) {
       body: JSON.stringify({ tag: newTag })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      setError("Could not create tag");
+      setError(data.error || "Could not create tag");
       return;
     }
 
@@ -34,8 +43,10 @@ export default function TagManager({ tags, profiles, onRefresh }) {
       method: "DELETE"
     });
 
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      setError("Could not delete tag");
+      setError(data.error || "Could not delete tag");
       return;
     }
 
@@ -64,7 +75,7 @@ export default function TagManager({ tags, profiles, onRefresh }) {
       {error && <p className="text-red-500 text-sm">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
-        {tags.map((tag) => {
+        {manageableTags.map((tag) => {
           const count = profiles.filter((p) => (p.tags || []).includes(tag)).length;
 
           return (

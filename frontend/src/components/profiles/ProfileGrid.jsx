@@ -2,7 +2,7 @@ import React from "react";
 
 import ProfileCard from "./ProfileCard";
 
-export default function ProfileGrid({ profiles, selectedProfiles, onToggleProfile }) {
+export default function ProfileGrid({ profiles, selectedProfiles, onToggleProfile, onOpenProfile }) {
   if (!profiles.length) {
     return (
       <div className="bg-white border rounded-2xl p-12 text-center text-zinc-500">
@@ -19,6 +19,7 @@ export default function ProfileGrid({ profiles, selectedProfiles, onToggleProfil
           profile={profile}
           selected={selectedProfiles.includes(profile.username)}
           onSelect={onToggleProfile}
+          onOpen={onOpenProfile}
         />
       ))}
     </div>

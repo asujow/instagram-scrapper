@@ -2,6 +2,18 @@ import fs from "fs";
 import path from "path";
 
 export const DB_PATH = path.resolve(process.cwd(), "data/db.json");
+export const IMAGES_DIR = path.resolve(process.cwd(), "data/images");
+
+// Reserved tag names with special meaning and styling. Unlike regular
+// tags, these are managed by dedicated flows (not the generic
+// create/delete-tag UI) because they carry extra logic:
+// - DELETED_TAG just needs to be add/removable like any tag.
+// - ALT_ACCOUNT_TAG is kept in sync with profile.mainAccountUsername by
+//   the /alt-account route — it should never be added/removed on its
+//   own, or the tag and the relationship it represents fall out of sync.
+export const DELETED_TAG = "deleted";
+export const ALT_ACCOUNT_TAG = "alt-account";
+export const RESERVED_TAGS = [DELETED_TAG, ALT_ACCOUNT_TAG];
 
 function emptyDB() {
   const now = new Date().toISOString();
@@ -25,6 +37,25 @@ export function ensureDB() {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     fs.writeFileSync(DB_PATH, JSON.stringify(emptyDB(), null, 2));
   }
+
+  if (!fs.existsSync(IMAGES_DIR)) {
+    fs.mkdirSync(IMAGES_DIR, { recursive: true });
+  }
+}
+
+/**
+ * Normalizes a single profile record in place, filling in fields that
+ * might be missing from an older db.json (self-healing, same idea as
+ * the top-level guards in readDB below).
+ */
+function normalizeProfileShape(profile) {
+  if (!Array.isArray(profile.tags)) profile.tags = [];
+
+  if (typeof profile.mainAccountUsername !== "string") {
+    profile.mainAccountUsername = null;
+  }
+
+  return profile;
 }
 
 /**
@@ -45,6 +76,8 @@ export function readDB() {
     if (!Array.isArray(data.profiles)) data.profiles = [];
     if (!Array.isArray(data.tags)) data.tags = [];
     if (!data.meta || typeof data.meta !== "object") data.meta = {};
+
+    data.profiles = data.profiles.map(normalizeProfileShape);
 
     return data;
   } catch (err) {
@@ -77,12 +110,43 @@ export function normalizeImportedDB(data) {
 
   const profiles = data.profiles
     .filter((p) => p && typeof p.username === "string" && p.username.trim())
-    .map((p) => ({
-      username: p.username.trim().toLowerCase(),
-      tags: Array.isArray(p.tags) ? p.tags : [],
-      imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : null,
-      createdAt: p.createdAt || new Date().toISOString()
-    }));
+    .map((p) => {
+      // imagePath is the current field (a local path served from /images).
+      // Older exported DBs used imageUrl with a remote Instagram URL —
+      // that's not a local file we have, so it can't be carried over as
+      // imagePath. It gets dropped to null; re-import or re-scrape to
+      // populate it again.
+      const imagePath =
+        typeof p.imagePath === "string" ? p.imagePath : null;
+
+      const mainAccountUsername =
+        typeof p.mainAccountUsername === "string"
+          ? p.mainAccountUsername.trim().toLowerCase()
+          : null;
+
+      return {
+        username: p.username.trim().toLowerCase(),
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        imagePath,
+        mainAccountUsername,
+        createdAt: p.createdAt || new Date().toISOString()
+      };
+    });
+
+  // A mainAccountUsername that doesn't match any profile in this same
+  // import is a dangling reference (e.g. the main account got filtered
+  // out above for having no valid username) — drop it rather than keep
+  // a link to something that doesn't exist.
+  const usernames = new Set(profiles.map((p) => p.username));
+
+  for (const profile of profiles) {
+    if (
+      profile.mainAccountUsername &&
+      !usernames.has(profile.mainAccountUsername)
+    ) {
+      profile.mainAccountUsername = null;
+    }
+  }
 
   const tags = data.tags.filter((t) => typeof t === "string" && t.trim());
 

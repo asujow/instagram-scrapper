@@ -1,7 +1,11 @@
 import React from "react";
+
+import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
+
 export default function DashboardPage({
   profiles,
-  tags
+  tags,
+  onRefresh
 }) {
   return (
     <div className="flex flex-col gap-8">
@@ -35,6 +39,8 @@ export default function DashboardPage({
           }
         />
       </div>
+
+      <PhotoRefreshPanel onRefresh={onRefresh} />
     </div>
   );
 }

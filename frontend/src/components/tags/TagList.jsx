@@ -1,5 +1,7 @@
 import React from "react";
 
+import { getTagColorClasses } from "../../utils/specialTags";
+
 /**
  * Read-only grid of tags with how many profiles use each one.
  */
@@ -19,7 +21,11 @@ export default function TagList({ tags, profiles }) {
 
         return (
           <div key={tag} className="bg-white border rounded-2xl p-4">
-            <div className="font-bold">{tag}</div>
+            <div
+              className={`font-bold w-fit px-2 py-0.5 rounded-lg ${getTagColorClasses(tag)}`}
+            >
+              {tag}
+            </div>
             <div className="text-zinc-500 text-sm mt-1">{count} profiles</div>
           </div>
         );
