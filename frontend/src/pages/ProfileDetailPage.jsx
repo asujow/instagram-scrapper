@@ -5,11 +5,12 @@ import TagChip from "../components/profiles/TagChip";
 import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
 import { DELETED_TAG, RESERVED_TAGS } from "../utils/specialTags";
 
-export default function ProfileDetailPage({ profile, profiles, tags, onBack, onRefresh }) {
+export default function ProfileDetailPage({ profile, profiles, tags, onBack, onRefresh, onOpenProfile }) {
   const [newTag, setNewTag] = useState("");
   const [tagError, setTagError] = useState("");
   const [altAccountChoice, setAltAccountChoice] = useState("");
   const [altError, setAltError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   if (!profile) {
     return (
@@ -155,6 +156,32 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
     await onRefresh();
   }
 
+  async function deleteProfile() {
+    const confirmed = window.confirm(
+      `Delete @${profile.username}? This permanently removes the profile and its downloaded photo. This can't be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeleteError("");
+
+    const response = await fetch("/api/profiles/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usernames: [profile.username] })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setDeleteError(data.error || "Could not delete profile");
+      return;
+    }
+
+    await onRefresh();
+    onBack();
+  }
+
   const createdDate = profile.createdAt
     ? new Date(profile.createdAt).toLocaleDateString()
     : null;
@@ -175,7 +202,7 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
         </div>
       )}
 
-      <div className="bg-white border rounded-2xl p-8 flex flex-col md:flex-row gap-8 items-start">
+      <div className="bg-white border rounded-2xl p-4 sm:p-8 flex flex-col md:flex-row gap-4 sm:gap-8 items-start">
         <img
           src={
             profile.imagePath
@@ -183,13 +210,13 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
               : "https://placehold.co/200x200"
           }
           alt={profile.username}
-          className="w-40 h-40 rounded-full object-cover border shrink-0"
+          className="w-28 h-28 sm:w-40 sm:h-40 rounded-full object-cover border shrink-0"
         />
 
-        <div className="flex flex-col gap-4 flex-1">
+        <div className="flex flex-col gap-4 flex-1 min-w-0 w-full">
           <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-3xl font-bold">@{profile.username}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">@{profile.username}</h1>
 
               <a
                 href={`https://www.instagram.com/${profile.username}/`}
@@ -201,17 +228,28 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
               </a>
             </div>
 
-            <button
-              onClick={toggleDeleted}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
-                isDeleted
-                  ? "bg-red-100 text-red-700 hover:bg-red-200"
-                  : "border hover:bg-zinc-50"
-              }`}
-            >
-              {isDeleted ? "Unmark as Deleted" : "Mark as Deleted"}
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={toggleDeleted}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+                  isDeleted
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "border hover:bg-zinc-50"
+                }`}
+              >
+                {isDeleted ? "Unmark as Deleted" : "Mark as Deleted"}
+              </button>
+
+              <button
+                onClick={deleteProfile}
+                className="px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap border border-red-200 text-red-700 hover:bg-red-50"
+              >
+                Delete Profile
+              </button>
+            </div>
           </div>
+
+          {deleteError && <p className="text-red-500 text-sm">{deleteError}</p>}
 
           <div>
             <div className="text-sm text-zinc-500 mb-2">Tags</div>
@@ -226,14 +264,14 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
               <p className="text-zinc-400 text-sm mb-4">No tags yet.</p>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addTag()}
                 placeholder="Add a tag..."
                 list="existing-tags"
-                className="border rounded-xl px-4 py-2 flex-1"
+                className="border rounded-xl px-4 py-2 flex-1 min-w-0"
               />
 
               <datalist id="existing-tags">
@@ -244,7 +282,7 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
 
               <button
                 onClick={addTag}
-                className="bg-black text-white px-5 rounded-xl"
+                className="bg-black text-white px-5 py-2 sm:py-0 rounded-xl shrink-0"
               >
                 Add
               </button>
@@ -271,10 +309,15 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
         </div>
 
         {mainProfile && (
-          <div className="flex items-center justify-between gap-4 bg-sky-50 rounded-xl px-4 py-3">
-            <span className="text-sm">
+          <div className="flex items-center justify-between gap-4 flex-wrap bg-sky-50 rounded-xl px-4 py-3">
+            <span className="text-sm min-w-0">
               This is an alternate account of{" "}
-              <span className="font-semibold">@{mainProfile.username}</span>
+              <button
+                onClick={() => onOpenProfile(mainProfile.username)}
+                className="font-semibold hover:underline"
+              >
+                @{mainProfile.username}
+              </button>
             </span>
 
             <button
@@ -295,18 +338,24 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
 
             <div className="flex flex-wrap gap-2">
               {incomingAlts.map((alt) => (
-                <TagChip key={alt.username} tag={`@${alt.username}`} />
+                <button
+                  key={alt.username}
+                  onClick={() => onOpenProfile(alt.username)}
+                  className="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-sm hover:bg-sky-200"
+                >
+                  @{alt.username}
+                </button>
               ))}
             </div>
           </div>
         )}
 
         {!mainProfile && incomingAlts.length === 0 && (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={altAccountChoice}
               onChange={(e) => setAltAccountChoice(e.target.value)}
-              className="border rounded-xl px-4 py-2 flex-1"
+              className="border rounded-xl px-4 py-2 flex-1 min-w-0"
             >
               <option value="">Select the main account...</option>
 
@@ -320,7 +369,7 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
             <button
               onClick={linkAltAccount}
               disabled={!altAccountChoice}
-              className="bg-black text-white px-5 rounded-xl disabled:opacity-40"
+              className="bg-black text-white px-5 py-2 sm:py-0 rounded-xl disabled:opacity-40 shrink-0"
             >
               Link
             </button>

@@ -1,12 +1,40 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
 
-import { readDB, writeDB, ALT_ACCOUNT_TAG } from "../utils/db.js";
+import { readDB, writeDB, ALT_ACCOUNT_TAG, RESERVED_TAGS, IMAGES_DIR } from "../utils/db.js";
 import {
   startPhotoRefresh,
   getPhotoRefreshStatus
 } from "../services/photoRefreshJob.js";
 
 const router = express.Router();
+
+/**
+ * Deletes any downloaded photo file(s) for a username (there should be
+ * at most one, but this doesn't assume a specific extension). Best
+ * effort — a missing or unremovable file shouldn't block deleting the
+ * profile itself.
+ */
+function deleteProfileImages(username) {
+  let files;
+
+  try {
+    files = fs.readdirSync(IMAGES_DIR);
+  } catch {
+    return;
+  }
+
+  for (const file of files) {
+    if (file === `${username}.jpg` || file === `${username}.png`) {
+      try {
+        fs.unlinkSync(path.join(IMAGES_DIR, file));
+      } catch (err) {
+        console.error(`Could not delete image for ${username}:`, err.message);
+      }
+    }
+  }
+}
 
 // GET /api/profiles — list all profiles
 router.get("/", (req, res) => {
@@ -247,6 +275,59 @@ router.post("/:username/alt-account", (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed updating alt-account link" });
+  }
+});
+
+// POST /api/profiles/delete — permanently delete one or more profiles
+// (and their downloaded photos). Body: { usernames: [...] }. Used for
+// both a single deletion (from the profile detail page) and a bulk one
+// (from the Profiles page selection) — same shape either way.
+router.post("/delete", (req, res) => {
+  try {
+    const { usernames } = req.body || {};
+
+    if (!Array.isArray(usernames) || !usernames.length) {
+      return res.status(400).json({ error: "No profiles selected" });
+    }
+
+    const db = readDB();
+    const usernameSet = new Set(usernames);
+
+    const toDelete = db.profiles.filter((p) => usernameSet.has(p.username));
+
+    if (!toDelete.length) {
+      return res.status(404).json({ error: "None of those profiles exist" });
+    }
+
+    db.profiles = db.profiles.filter((p) => !usernameSet.has(p.username));
+
+    // A profile that had alts pointing to it as their main account is
+    // gone now — clear those dangling links instead of leaving them
+    // pointing at a username that no longer exists.
+    for (const profile of db.profiles) {
+      if (profile.mainAccountUsername && usernameSet.has(profile.mainAccountUsername)) {
+        profile.mainAccountUsername = null;
+        profile.tags = (profile.tags || []).filter((t) => t !== ALT_ACCOUNT_TAG);
+      }
+    }
+
+    for (const profile of toDelete) {
+      deleteProfileImages(profile.username);
+    }
+
+    // Drop any tag that no profile uses anymore now that these are
+    // gone — except the reserved tags, which stay in the system even
+    // with zero profiles using them (they're not "just a label", they
+    // have dedicated management UI that assumes they always exist).
+    const usedTags = new Set(db.profiles.flatMap((p) => p.tags || []));
+    db.tags = db.tags.filter((t) => RESERVED_TAGS.includes(t) || usedTags.has(t));
+
+    writeDB(db);
+
+    res.json({ success: true, deleted: toDelete.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed deleting profiles" });
   }
 });
 

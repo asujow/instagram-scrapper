@@ -16,7 +16,7 @@ export default function ProfilesPage({
   onOpenProfile
 }) {
   const [search, setSearch] = useState("");
-  const [selectedTag, setSelectedTag] = useState("");
+  const [selectedTags, setSelectedTags] = useState([]);
   const [bulkTag, setBulkTag] = useState("");
   const [deletedError, setDeletedError] = useState("");
 
@@ -26,12 +26,21 @@ export default function ProfilesPage({
         .toLowerCase()
         .includes(search.toLowerCase());
 
-      const matchesTag =
-        !selectedTag || (profile.tags || []).includes(selectedTag);
+      // A profile must have EVERY selected tag, not just any one of
+      // them — narrows the list down as you add more filters.
+      const matchesTags = selectedTags.every((tag) =>
+        (profile.tags || []).includes(tag)
+      );
 
-      return matchesSearch && matchesTag;
+      return matchesSearch && matchesTags;
     });
-  }, [profiles, search, selectedTag]);
+  }, [profiles, search, selectedTags]);
+
+  function toggleTagFilter(tag) {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
 
   async function applyBulkTag() {
     if (!selectedProfiles.length || !bulkTag.trim()) return;
@@ -82,18 +91,49 @@ export default function ProfilesPage({
     await onRefresh();
   }
 
+  async function deleteSelected() {
+    if (!selectedProfiles.length) return;
+
+    const list = selectedProfiles.map((u) => `@${u}`).join(", ");
+
+    const confirmed = window.confirm(
+      `Delete ${selectedProfiles.length} profile(s)? This permanently removes them and their downloaded photos. This can't be undone.\n\n${list}`
+    );
+
+    if (!confirmed) return;
+
+    setDeletedError("");
+
+    const response = await fetch("/api/profiles/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usernames: selectedProfiles })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setDeletedError(data.error || "Could not delete profiles");
+      return;
+    }
+
+    onClearSelection();
+    await onRefresh();
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-4xl font-bold">Profiles</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold">Profiles</h1>
         <p className="text-zinc-500 mt-2">Browse and filter profiles</p>
       </div>
 
       <ProfileToolbar
         search={search}
         onSearchChange={setSearch}
-        selectedTag={selectedTag}
-        onSelectedTagChange={setSelectedTag}
+        selectedTags={selectedTags}
+        onToggleTagFilter={toggleTagFilter}
+        onClearTagFilters={() => setSelectedTags([])}
         tags={tags}
         bulkTag={bulkTag}
         onBulkTagChange={setBulkTag}
@@ -102,17 +142,17 @@ export default function ProfilesPage({
       />
 
       <div className="bg-white border rounded-2xl p-4 flex flex-col gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-sm text-zinc-500">
-            {selectedProfiles.length
-              ? `${selectedProfiles.length} profile(s) selected`
-              : "Select profiles below to mark them as deleted"}
-          </span>
+        <span className="text-sm text-zinc-500">
+          {selectedProfiles.length
+            ? `${selectedProfiles.length} profile(s) selected`
+            : "Select profiles below to mark or delete them"}
+        </span>
 
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setDeletedForSelected(true)}
             disabled={!selectedProfiles.length}
-            className="ml-auto bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-200 disabled:opacity-40"
+            className="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-200 disabled:opacity-40"
           >
             Mark as Deleted
           </button>
@@ -123,6 +163,14 @@ export default function ProfilesPage({
             className="border px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-50 disabled:opacity-40"
           >
             Unmark as Deleted
+          </button>
+
+          <button
+            onClick={deleteSelected}
+            disabled={!selectedProfiles.length}
+            className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-40"
+          >
+            Delete Selected
           </button>
         </div>
 

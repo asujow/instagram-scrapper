@@ -84,6 +84,7 @@ export default function TxtUpload({
         type="file"
         accept=".txt"
         onChange={handleTxtUpload}
+        className="max-w-full"
       />
 
       {error && (

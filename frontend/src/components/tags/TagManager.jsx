@@ -53,20 +53,44 @@ export default function TagManager({ tags, profiles, onRefresh }) {
     await onRefresh();
   }
 
+  async function renameTag(tag) {
+    const newName = window.prompt(`Rename "${tag}" to:`, tag);
+
+    if (newName === null) return; // cancelled
+    if (!newName.trim() || newName.trim().toLowerCase() === tag) return;
+
+    setError("");
+
+    const response = await fetch(`/api/tags/${encodeURIComponent(tag)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newName })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setError(data.error || "Could not rename tag");
+      return;
+    }
+
+    await onRefresh();
+  }
+
   return (
     <div className="bg-white border rounded-2xl p-6 flex flex-col gap-4">
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <input
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && createTag()}
           placeholder="New tag..."
-          className="border rounded-xl px-4 py-3 flex-1"
+          className="border rounded-xl px-4 py-3 flex-1 min-w-0"
         />
 
         <button
           onClick={createTag}
-          className="bg-black text-white px-5 rounded-xl"
+          className="bg-black text-white px-5 py-3 sm:py-0 rounded-xl shrink-0"
         >
           Create
         </button>
@@ -82,6 +106,7 @@ export default function TagManager({ tags, profiles, onRefresh }) {
             <TagChip
               key={tag}
               tag={`${tag} (${count})`}
+              onEdit={() => renameTag(tag)}
               onRemove={() => deleteTag(tag)}
             />
           );

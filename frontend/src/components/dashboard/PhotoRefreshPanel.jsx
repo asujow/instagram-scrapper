@@ -98,8 +98,8 @@ export default function PhotoRefreshPanel({
 
   return (
     <div className="bg-white border rounded-2xl p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
           <div className="font-bold text-lg">{title}</div>
           <p className="text-zinc-500 text-sm mt-1">{description}</p>
         </div>

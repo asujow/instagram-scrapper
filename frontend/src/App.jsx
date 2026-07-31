@@ -44,6 +44,7 @@ export default function App() {
           tags={tags}
           onBack={() => setViewingUsername(null)}
           onRefresh={refresh}
+          onOpenProfile={setViewingUsername}
         />
       );
     }

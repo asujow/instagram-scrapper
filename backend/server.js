@@ -4,6 +4,7 @@ import cors from "cors";
 import profilesRoutes from "./routes/profiles.js";
 import tagsRoutes from "./routes/tags.js";
 import importRoutes from "./routes/import.js";
+import databaseRoutes from "./routes/database.js";
 
 import { ensureDB, IMAGES_DIR } from "./utils/db.js";
 
@@ -35,6 +36,7 @@ app.use("/images", express.static(IMAGES_DIR));
 app.use("/api/profiles", profilesRoutes);
 app.use("/api/tags", tagsRoutes);
 app.use("/api/import", importRoutes);
+app.use("/api/database", databaseRoutes);
 
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

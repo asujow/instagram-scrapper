@@ -18,12 +18,15 @@ const items = [
   }
 ];
 
+// Desktop/tablet only — below md, BottomNav takes over navigation
+// instead (a fixed 256px sidebar leaves almost no room for content on
+// a phone-width screen).
 export default function Sidebar({
   currentPage,
   onNavigate
 }) {
   return (
-    <aside className="w-64 bg-black text-white p-6 flex flex-col gap-4">
+    <aside className="hidden md:flex w-64 shrink-0 bg-black text-white p-6 flex-col gap-4">
       <div>
         <h1 className="text-2xl font-bold">
           IG Tagger

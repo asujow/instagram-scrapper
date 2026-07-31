@@ -38,7 +38,7 @@ export default function ImportPage({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-4xl font-bold">
+        <h1 className="text-3xl sm:text-4xl font-bold">
           Import Profiles
         </h1>
 

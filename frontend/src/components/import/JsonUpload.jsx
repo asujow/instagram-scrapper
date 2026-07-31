@@ -51,7 +51,7 @@ export default function JsonUpload({ onImport }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="font-semibold mb-2">Load JSON Database</div>
-      <input type="file" accept=".json" onChange={handleJsonUpload} />
+      <input type="file" accept=".json" onChange={handleJsonUpload} className="max-w-full" />
 
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded-xl">

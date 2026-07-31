@@ -2,7 +2,7 @@
   "name": "instagram-profile-tagger-backend",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js"
+    "dev": "node --watch-path=server.js --watch-path=routes --watch-path=services --watch-path=utils server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
