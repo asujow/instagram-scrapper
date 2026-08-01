@@ -4,6 +4,8 @@ import JsonUpload from "../components/import/JsonUpload";
 import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
 import React, { useState } from "react";
 
+import { apiFetch, jsonBody } from "../utils/api";
+
 export default function ImportPage({
   onImport
 }) {
@@ -22,11 +24,17 @@ export default function ImportPage({
       );
 
       if (wantsPhotos) {
-        await fetch("/api/profiles/refresh-photos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usernames: data.newUsernames })
-        });
+        try {
+          await apiFetch("/api/profiles/refresh-photos", {
+            method: "POST",
+            ...jsonBody({ usernames: data.newUsernames })
+          });
+        } catch (err) {
+          // Not fatal — the import itself already succeeded, and the
+          // panel below will show whatever the job status actually is
+          // once it remounts. Just don't let this go unnoticed.
+          console.error("Could not start photo download:", err.message);
+        }
       }
     }
 

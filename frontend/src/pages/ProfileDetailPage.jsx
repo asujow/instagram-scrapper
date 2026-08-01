@@ -3,7 +3,9 @@ import { useState } from "react";
 
 import TagChip from "../components/profiles/TagChip";
 import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
+import ProfileEditPanel from "../components/profiles/ProfileEditPanel";
 import { DELETED_TAG, RESERVED_TAGS } from "../utils/specialTags";
+import { apiFetch, jsonBody } from "../utils/api";
 
 export default function ProfileDetailPage({ profile, profiles, tags, onBack, onRefresh, onOpenProfile }) {
   const [newTag, setNewTag] = useState("");
@@ -48,18 +50,13 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
     return true;
   });
 
+  // Throws on failure — used by toggleDeleted, which wraps it in its
+  // own try/catch to share one error path with the "unmark" branch.
   async function applyTag(tag, usernames = [profile.username]) {
-    const response = await fetch("/api/profiles/tags/bulk", {
+    await apiFetch("/api/profiles/tags/bulk", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usernames, tag })
+      ...jsonBody({ usernames, tag })
     });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data.error || "Could not add tag");
-    }
   }
 
   async function addTag() {
@@ -79,19 +76,15 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
   async function removeTag(tag) {
     setTagError("");
 
-    const response = await fetch(
-      `/api/profiles/${encodeURIComponent(profile.username)}/tags/${encodeURIComponent(tag)}`,
-      { method: "DELETE" }
-    );
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setTagError(data.error || "Could not remove tag");
-      return;
+    try {
+      await apiFetch(
+        `/api/profiles/${encodeURIComponent(profile.username)}/tags/${encodeURIComponent(tag)}`,
+        { method: "DELETE" }
+      );
+      await onRefresh();
+    } catch (err) {
+      setTagError(err.message);
     }
-
-    await onRefresh();
   }
 
   async function toggleDeleted() {
@@ -114,46 +107,30 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
 
     setAltError("");
 
-    const response = await fetch(
-      `/api/profiles/${encodeURIComponent(profile.username)}/alt-account`,
-      {
+    try {
+      await apiFetch(`/api/profiles/${encodeURIComponent(profile.username)}/alt-account`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mainAccountUsername: altAccountChoice })
-      }
-    );
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setAltError(data.error || "Could not link accounts");
-      return;
+        ...jsonBody({ mainAccountUsername: altAccountChoice })
+      });
+      setAltAccountChoice("");
+      await onRefresh();
+    } catch (err) {
+      setAltError(err.message);
     }
-
-    setAltAccountChoice("");
-    await onRefresh();
   }
 
   async function unlinkAltAccount() {
     setAltError("");
 
-    const response = await fetch(
-      `/api/profiles/${encodeURIComponent(profile.username)}/alt-account`,
-      {
+    try {
+      await apiFetch(`/api/profiles/${encodeURIComponent(profile.username)}/alt-account`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mainAccountUsername: null })
-      }
-    );
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setAltError(data.error || "Could not unlink account");
-      return;
+        ...jsonBody({ mainAccountUsername: null })
+      });
+      await onRefresh();
+    } catch (err) {
+      setAltError(err.message);
     }
-
-    await onRefresh();
   }
 
   async function deleteProfile() {
@@ -165,21 +142,16 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
 
     setDeleteError("");
 
-    const response = await fetch("/api/profiles/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usernames: [profile.username] })
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setDeleteError(data.error || "Could not delete profile");
-      return;
+    try {
+      await apiFetch("/api/profiles/delete", {
+        method: "POST",
+        ...jsonBody({ usernames: [profile.username] })
+      });
+      await onRefresh();
+      onBack();
+    } catch (err) {
+      setDeleteError(err.message);
     }
-
-    await onRefresh();
-    onBack();
   }
 
   const createdDate = profile.createdAt
@@ -217,6 +189,9 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold truncate">@{profile.username}</h1>
+              {profile.nickname && (
+                <p className="text-zinc-500 truncate">{profile.nickname}</p>
+              )}
 
               <a
                 href={`https://www.instagram.com/${profile.username}/`}
@@ -298,6 +273,12 @@ export default function ProfileDetailPage({ profile, profiles, tags, onBack, onR
           )}
         </div>
       </div>
+
+      <ProfileEditPanel
+        profile={profile}
+        onRefresh={onRefresh}
+        onUsernameChanged={onOpenProfile}
+      />
 
       <div className="bg-white border rounded-2xl p-6 flex flex-col gap-4">
         <div>

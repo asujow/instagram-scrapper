@@ -3,7 +3,7 @@ import path from "path";
 
 import { chromium } from "playwright";
 
-import { IMAGES_DIR } from "../utils/db.js";
+import { IMAGES_DIR, isValidUsername } from "../utils/db.js";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -129,6 +129,15 @@ async function findProfilePhotoUrl(browser, username) {
  * FETCH_TIMEOUT_MS, or the download fails outright.
  */
 async function downloadImage(url, username) {
+  // Belt-and-suspenders: username ends up directly in a filesystem path
+  // below. Every caller of scrapeProfilePhoto is expected to only pass
+  // already-validated usernames, but this check means a bad one (bug
+  // upstream, crafted API request, whatever) can never turn into a
+  // path-traversal write — it just fails this profile instead.
+  if (!isValidUsername(username)) {
+    throw new Error(`Refusing to write a file for invalid username: ${username}`);
+  }
+
   if (!VALID_IMAGE_HOST_PATTERN.test(url)) {
     throw new Error(
       `Rejected image from unexpected host (likely a consent/login wall graphic, not a profile photo): ${url}`

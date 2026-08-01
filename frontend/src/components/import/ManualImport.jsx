@@ -1,6 +1,8 @@
 import React from "react";
 import { useState } from "react";
 
+import { apiFetch, jsonBody } from "../../utils/api";
+
 export default function ManualImport({ onImport }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,19 +17,7 @@ export default function ManualImport({ onImport }) {
     setSuccess("");
 
     try {
-      const res = await fetch("/api/import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ text })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Import failed");
-      }
+      const data = await apiFetch("/api/import", { method: "POST", ...jsonBody({ text }) });
 
       setSuccess(`Imported ${data.added} profiles`);
       setText("");

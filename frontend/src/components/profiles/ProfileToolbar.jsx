@@ -28,7 +28,7 @@ export default function ProfileToolbar({
       <div className="bg-white border rounded-2xl p-4 flex flex-col gap-4">
         <input
           type="text"
-          placeholder="Search username..."
+          placeholder="Search username or nickname..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="border rounded-xl px-4 py-3 flex-1"

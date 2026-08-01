@@ -15,6 +15,29 @@ export const DELETED_TAG = "deleted";
 export const ALT_ACCOUNT_TAG = "alt-account";
 export const RESERVED_TAGS = [DELETED_TAG, ALT_ACCOUNT_TAG];
 
+// Same pattern enforced by utils/extractUsernames.js for the text-import
+// path. Usernames end up in filesystem paths (downloaded photo
+// filenames) and browser URLs (the scraper navigates to
+// instagram.com/<username>), so every OTHER path that can introduce a
+// username — right now just JSON import — needs to enforce this same
+// shape too, or a crafted/corrupted db.json could smuggle in something
+// like "../../etc/passwd" and have it used in a file write later.
+const VALID_USERNAME_PATTERN = /^[a-zA-Z0-9._]{1,30}$/;
+
+export function isValidUsername(username) {
+  return typeof username === "string" && VALID_USERNAME_PATTERN.test(username);
+}
+
+// Nicknames are free text (not used in any file path or URL, unlike
+// username), so no character restriction — just a sane length cap.
+export const MAX_NICKNAME_LENGTH = 100;
+
+export function normalizeNickname(nickname) {
+  if (typeof nickname !== "string") return null;
+  const trimmed = nickname.trim().slice(0, MAX_NICKNAME_LENGTH);
+  return trimmed || null;
+}
+
 function emptyDB() {
   const now = new Date().toISOString();
 
@@ -54,6 +77,8 @@ function normalizeProfileShape(profile) {
   if (typeof profile.mainAccountUsername !== "string") {
     profile.mainAccountUsername = null;
   }
+
+  profile.nickname = normalizeNickname(profile.nickname);
 
   return profile;
 }
@@ -109,7 +134,12 @@ export function normalizeImportedDB(data) {
   if (!Array.isArray(data.tags)) return null;
 
   const profiles = data.profiles
-    .filter((p) => p && typeof p.username === "string" && p.username.trim())
+    .filter(
+      (p) =>
+        p &&
+        typeof p.username === "string" &&
+        isValidUsername(p.username.trim().toLowerCase())
+    )
     .map((p) => {
       // imagePath is the current field (a local path served from /images).
       // Older exported DBs used imageUrl with a remote Instagram URL —
@@ -126,6 +156,7 @@ export function normalizeImportedDB(data) {
 
       return {
         username: p.username.trim().toLowerCase(),
+        nickname: normalizeNickname(p.nickname),
         tags: Array.isArray(p.tags) ? p.tags : [],
         imagePath,
         mainAccountUsername,

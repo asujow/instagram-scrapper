@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { apiFetch } from "../utils/api";
+
 /**
  * Single source of truth for profiles, tags, and the current profile
  * selection. Centralizing this here (instead of duplicating selection
@@ -18,13 +20,13 @@ export function useAppData() {
     setLoading(true);
 
     try {
-      const [profilesRes, tagsRes] = await Promise.all([
-        fetch("/api/profiles"),
-        fetch("/api/tags")
+      const [profilesData, tagsData] = await Promise.all([
+        apiFetch("/api/profiles"),
+        apiFetch("/api/tags")
       ]);
 
-      setProfiles(await profilesRes.json());
-      setTags(await tagsRes.json());
+      setProfiles(profilesData);
+      setTags(tagsData);
     } finally {
       setLoading(false);
     }

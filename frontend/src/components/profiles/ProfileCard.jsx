@@ -29,6 +29,9 @@ export default function ProfileCard({ profile, selected, onSelect, onOpen }) {
 
         <div className="flex-1 min-w-0">
           <div className="text-lg sm:text-xl font-bold truncate">@{profile.username}</div>
+          {profile.nickname && (
+            <div className="text-sm text-zinc-500 truncate">{profile.nickname}</div>
+          )}
 
           <div className="flex flex-wrap gap-2 mt-2 sm:mt-3">
             {(profile.tags || []).map((tag) => (

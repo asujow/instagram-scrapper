@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import TagChip from "../profiles/TagChip";
 import { RESERVED_TAGS } from "../../utils/specialTags";
+import { apiFetch, jsonBody } from "../../utils/api";
 
 // The "deleted" and "alt-account" tags are managed through dedicated
 // controls on a profile (see ProfileDetailPage and the bulk actions on
@@ -19,38 +20,24 @@ export default function TagManager({ tags, profiles, onRefresh }) {
 
     setError("");
 
-    const response = await fetch("/api/tags", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tag: newTag })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.error || "Could not create tag");
-      return;
+    try {
+      await apiFetch("/api/tags", { method: "POST", ...jsonBody({ tag: newTag }) });
+      setNewTag("");
+      await onRefresh();
+    } catch (err) {
+      setError(err.message);
     }
-
-    setNewTag("");
-    await onRefresh();
   }
 
   async function deleteTag(tag) {
     setError("");
 
-    const response = await fetch(`/api/tags/${encodeURIComponent(tag)}`, {
-      method: "DELETE"
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setError(data.error || "Could not delete tag");
-      return;
+    try {
+      await apiFetch(`/api/tags/${encodeURIComponent(tag)}`, { method: "DELETE" });
+      await onRefresh();
+    } catch (err) {
+      setError(err.message);
     }
-
-    await onRefresh();
   }
 
   async function renameTag(tag) {
@@ -61,20 +48,15 @@ export default function TagManager({ tags, profiles, onRefresh }) {
 
     setError("");
 
-    const response = await fetch(`/api/tags/${encodeURIComponent(tag)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newName })
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setError(data.error || "Could not rename tag");
-      return;
+    try {
+      await apiFetch(`/api/tags/${encodeURIComponent(tag)}`, {
+        method: "PUT",
+        ...jsonBody({ newName })
+      });
+      await onRefresh();
+    } catch (err) {
+      setError(err.message);
     }
-
-    await onRefresh();
   }
 
   return (

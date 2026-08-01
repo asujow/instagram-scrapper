@@ -5,6 +5,7 @@ import ProfileGrid from "../components/profiles/ProfileGrid";
 import ProfileToolbar from "../components/profiles/ProfileToolbar";
 import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
 import { DELETED_TAG } from "../utils/specialTags";
+import { apiFetch, jsonBody } from "../utils/api";
 
 export default function ProfilesPage({
   profiles,
@@ -18,13 +19,16 @@ export default function ProfilesPage({
   const [search, setSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState([]);
   const [bulkTag, setBulkTag] = useState("");
+  const [bulkTagError, setBulkTagError] = useState("");
   const [deletedError, setDeletedError] = useState("");
 
   const filteredProfiles = useMemo(() => {
     return profiles.filter((profile) => {
-      const matchesSearch = profile.username
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const query = search.toLowerCase();
+
+      const matchesSearch =
+        profile.username.toLowerCase().includes(query) ||
+        (profile.nickname || "").toLowerCase().includes(query);
 
       // A profile must have EVERY selected tag, not just any one of
       // them — narrows the list down as you add more filters.
@@ -45,23 +49,19 @@ export default function ProfilesPage({
   async function applyBulkTag() {
     if (!selectedProfiles.length || !bulkTag.trim()) return;
 
-    const response = await fetch("/api/profiles/tags/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        usernames: selectedProfiles,
-        tag: bulkTag
-      })
-    });
+    setBulkTagError("");
 
-    if (!response.ok) {
-      console.error(await response.text());
-      return;
+    try {
+      await apiFetch(
+        "/api/profiles/tags/bulk",
+        { method: "POST", ...jsonBody({ usernames: selectedProfiles, tag: bulkTag }) }
+      );
+      setBulkTag("");
+      onClearSelection();
+      await onRefresh();
+    } catch (err) {
+      setBulkTagError(err.message);
     }
-
-    setBulkTag("");
-    onClearSelection();
-    await onRefresh();
   }
 
   async function setDeletedForSelected(deleted) {
@@ -69,26 +69,15 @@ export default function ProfilesPage({
 
     setDeletedError("");
 
-    const response = await fetch(
-      `/api/profiles/tags/${deleted ? "bulk" : "bulk-remove"}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          usernames: selectedProfiles,
-          tag: DELETED_TAG
-        })
-      }
-    );
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setDeletedError(data.error || "Could not update deleted status");
-      return;
+    try {
+      await apiFetch(
+        `/api/profiles/tags/${deleted ? "bulk" : "bulk-remove"}`,
+        { method: "POST", ...jsonBody({ usernames: selectedProfiles, tag: DELETED_TAG }) }
+      );
+      await onRefresh();
+    } catch (err) {
+      setDeletedError(err.message);
     }
-
-    await onRefresh();
   }
 
   async function deleteSelected() {
@@ -104,21 +93,16 @@ export default function ProfilesPage({
 
     setDeletedError("");
 
-    const response = await fetch("/api/profiles/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usernames: selectedProfiles })
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setDeletedError(data.error || "Could not delete profiles");
-      return;
+    try {
+      await apiFetch("/api/profiles/delete", {
+        method: "POST",
+        ...jsonBody({ usernames: selectedProfiles })
+      });
+      onClearSelection();
+      await onRefresh();
+    } catch (err) {
+      setDeletedError(err.message);
     }
-
-    onClearSelection();
-    await onRefresh();
   }
 
   return (
@@ -140,6 +124,8 @@ export default function ProfilesPage({
         onApplyBulkTag={applyBulkTag}
         selectedCount={selectedProfiles.length}
       />
+
+      {bulkTagError && <p className="text-red-500 text-sm">{bulkTagError}</p>}
 
       <div className="bg-white border rounded-2xl p-4 flex flex-col gap-3">
         <span className="text-sm text-zinc-500">

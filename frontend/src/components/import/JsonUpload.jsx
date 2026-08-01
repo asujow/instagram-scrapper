@@ -1,6 +1,8 @@
 import React from "react";
 import { useState } from "react";
 
+import { apiFetch, jsonBody } from "../../utils/api";
+
 export default function JsonUpload({ onImport }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,19 +27,7 @@ export default function JsonUpload({ onImport }) {
       const text = await file.text();
       const json = JSON.parse(text);
 
-      const res = await fetch("/api/import/json", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(json)
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "JSON import failed");
-      }
+      await apiFetch("/api/import/json", { method: "POST", ...jsonBody(json) });
 
       setSuccess("JSON database loaded");
       onImport();

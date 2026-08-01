@@ -1,17 +1,12 @@
 import React from "react";
 import { useState } from "react";
 
-export default function TxtUpload({
-  onImport
-}) {
-  const [loading, setLoading] =
-    useState(false);
+import { apiFetch, jsonBody } from "../../utils/api";
 
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState("");
+export default function TxtUpload({ onImport }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function handleTxtUpload(e) {
     const file = e.target.files[0];
@@ -19,56 +14,23 @@ export default function TxtUpload({
     if (!file) return;
 
     if (!file.name.endsWith(".txt")) {
-      setError(
-        "Please upload a TXT file"
-      );
-
+      setError("Please upload a TXT file");
       setSuccess("");
-
       return;
     }
 
     try {
       setLoading(true);
-
       setError("");
       setSuccess("");
 
       const text = await file.text();
+      const data = await apiFetch("/api/import", { method: "POST", ...jsonBody({ text }) });
 
-      const res = await fetch(
-        "/api/import",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-          body: JSON.stringify({
-            text
-          })
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.error ||
-            "TXT import failed"
-        );
-      }
-
-      setSuccess(
-        `Imported ${data.added} profiles`
-      );
-
+      setSuccess(`Imported ${data.added} profiles`);
       await onImport(data);
     } catch (err) {
-      setError(
-        err.message ||
-          "TXT import failed"
-      );
+      setError(err.message || "TXT import failed");
     }
 
     setLoading(false);

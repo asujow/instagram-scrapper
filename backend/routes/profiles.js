@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 
-import { readDB, writeDB, ALT_ACCOUNT_TAG, RESERVED_TAGS, IMAGES_DIR } from "../utils/db.js";
+import { readDB, writeDB, ALT_ACCOUNT_TAG, RESERVED_TAGS, IMAGES_DIR, isValidUsername, normalizeNickname } from "../utils/db.js";
 import {
   startPhotoRefresh,
   getPhotoRefreshStatus
@@ -10,11 +10,21 @@ import {
 
 const router = express.Router();
 
+// Custom photo uploads accept these formats. Keep in sync with the
+// content-type check in the /photo route below.
+const IMAGE_MIME_TO_EXT = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp"
+};
+
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
+
 /**
- * Deletes any downloaded photo file(s) for a username (there should be
- * at most one, but this doesn't assume a specific extension). Best
- * effort — a missing or unremovable file shouldn't block deleting the
- * profile itself.
+ * Deletes any downloaded photo file(s) for a username, whatever the
+ * extension (there should be at most one, but this doesn't assume a
+ * specific one). Best effort — a missing or unremovable file shouldn't
+ * block deleting/renaming the profile itself.
  */
 function deleteProfileImages(username) {
   let files;
@@ -26,7 +36,7 @@ function deleteProfileImages(username) {
   }
 
   for (const file of files) {
-    if (file === `${username}.jpg` || file === `${username}.png`) {
+    if (file.startsWith(`${username}.`)) {
       try {
         fs.unlinkSync(path.join(IMAGES_DIR, file));
       } catch (err) {
@@ -53,6 +63,10 @@ router.post("/refresh-photos", (req, res) => {
 
   if (usernames !== undefined && !Array.isArray(usernames)) {
     return res.status(400).json({ error: "usernames must be an array" });
+  }
+
+  if (usernames && !usernames.every(isValidUsername)) {
+    return res.status(400).json({ error: "One or more usernames are invalid" });
   }
 
   const started = startPhotoRefresh(usernames);
@@ -328,6 +342,168 @@ router.post("/delete", (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed deleting profiles" });
+  }
+});
+
+// PUT /api/profiles/:username/nickname — set or clear a free-text
+// nickname. Purely cosmetic/searchable — doesn't replace the username
+// and isn't required to be unique (multiple profiles can share one).
+router.put("/:username/nickname", (req, res) => {
+  try {
+    const { username } = req.params;
+    const { nickname } = req.body || {};
+
+    const db = readDB();
+    const profile = db.profiles.find((p) => p.username === username);
+
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    if (nickname !== null && typeof nickname !== "string") {
+      return res.status(400).json({ error: "nickname must be a string or null" });
+    }
+
+    profile.nickname = normalizeNickname(nickname);
+
+    writeDB(db);
+
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed updating nickname" });
+  }
+});
+
+// PUT /api/profiles/:username/username — rename a profile's username.
+// This is the one field everything else keys off, so renaming cascades:
+// any profile that has this one as its main account gets repointed to
+// the new name, and the downloaded photo file (if any) is renamed to
+// match instead of becoming orphaned under the old name.
+router.put("/:username/username", (req, res) => {
+  try {
+    const { username } = req.params;
+    const { newUsername } = req.body || {};
+
+    if (!isValidUsername(newUsername)) {
+      return res.status(400).json({ error: "Invalid new username" });
+    }
+
+    const normalized = newUsername.trim().toLowerCase();
+
+    const db = readDB();
+    const profile = db.profiles.find((p) => p.username === username);
+
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    if (normalized === username) {
+      return res.json({ success: true, profile }); // no-op
+    }
+
+    const conflict = db.profiles.some((p) => p.username === normalized);
+
+    if (conflict) {
+      return res.status(400).json({
+        error: `A profile named @${normalized} already exists`
+      });
+    }
+
+    // Rename the photo file on disk (if any) so it isn't orphaned under
+    // the old username. Best effort: if this fails for some reason,
+    // fall back to no photo rather than blocking the rename.
+    if (profile.imagePath) {
+      const ext = profile.imagePath.split(".").pop();
+      const oldPath = path.join(IMAGES_DIR, `${username}.${ext}`);
+      const newPath = path.join(IMAGES_DIR, `${normalized}.${ext}`);
+
+      try {
+        fs.renameSync(oldPath, newPath);
+        profile.imagePath = `images/${normalized}.${ext}`;
+      } catch (err) {
+        console.error(`Could not rename image for ${username}:`, err.message);
+        profile.imagePath = null;
+      }
+    }
+
+    profile.username = normalized;
+
+    // Anyone whose main account was this profile needs to point at the
+    // new username instead — otherwise that link silently breaks.
+    for (const other of db.profiles) {
+      if (other.mainAccountUsername === username) {
+        other.mainAccountUsername = normalized;
+      }
+    }
+
+    writeDB(db);
+
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed renaming profile" });
+  }
+});
+
+// POST /api/profiles/:username/photo — replace a profile's photo with
+// a custom upload. Body: { dataUrl: "data:image/jpeg;base64,..." } —
+// sent as JSON (not multipart) to avoid adding a file-upload dependency
+// for what's a pretty small feature; the frontend reads the chosen
+// file as a data URL before sending it.
+router.post("/:username/photo", (req, res) => {
+  try {
+    const { username } = req.params;
+    const { dataUrl } = req.body || {};
+
+    const db = readDB();
+    const profile = db.profiles.find((p) => p.username === username);
+
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    if (typeof dataUrl !== "string") {
+      return res.status(400).json({ error: "dataUrl is required" });
+    }
+
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/);
+
+    if (!match) {
+      return res.status(400).json({ error: "dataUrl must be a base64 image data URL" });
+    }
+
+    const [, mimeType, base64Data] = match;
+    const ext = IMAGE_MIME_TO_EXT[mimeType];
+
+    if (!ext) {
+      return res.status(400).json({
+        error: `Unsupported image type "${mimeType}" — use JPEG, PNG, or WEBP`
+      });
+    }
+
+    const buffer = Buffer.from(base64Data, "base64");
+
+    if (buffer.length > MAX_PHOTO_BYTES) {
+      return res.status(400).json({
+        error: `Image too large — max ${MAX_PHOTO_BYTES / 1024 / 1024}MB`
+      });
+    }
+
+    // Clear out any existing photo for this profile first (it might
+    // have a different extension than the new upload).
+    deleteProfileImages(username);
+
+    fs.writeFileSync(path.join(IMAGES_DIR, `${username}.${ext}`), buffer);
+
+    profile.imagePath = `images/${username}.${ext}`;
+
+    writeDB(db);
+
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed uploading photo" });
   }
 });
 

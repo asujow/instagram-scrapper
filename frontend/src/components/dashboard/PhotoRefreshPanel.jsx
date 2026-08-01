@@ -1,6 +1,8 @@
 import React from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { apiFetch, jsonBody } from "../../utils/api";
+
 const POLL_INTERVAL_MS = 1000;
 
 /**
@@ -40,8 +42,7 @@ export default function PhotoRefreshPanel({
   }, []);
 
   async function checkStatus() {
-    const res = await fetch("/api/profiles/refresh-photos/status");
-    const data = await res.json();
+    const data = await apiFetch("/api/profiles/refresh-photos/status");
 
     setStatus(data);
 
@@ -52,8 +53,7 @@ export default function PhotoRefreshPanel({
     clearInterval(pollRef.current);
 
     pollRef.current = setInterval(async () => {
-      const res = await fetch("/api/profiles/refresh-photos/status");
-      const data = await res.json();
+      const data = await apiFetch("/api/profiles/refresh-photos/status");
 
       setStatus(data);
       await onRefresh();
@@ -67,22 +67,17 @@ export default function PhotoRefreshPanel({
   async function handleClick() {
     setError("");
 
-    const res = await fetch("/api/profiles/refresh-photos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(usernames ? { usernames } : {})
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error || "Could not start photo refresh");
-      if (data.status) setStatus(data.status);
-      return;
+    try {
+      const data = await apiFetch(
+        "/api/profiles/refresh-photos",
+        { method: "POST", ...jsonBody(usernames ? { usernames } : {}) }
+      );
+      setStatus(data.status);
+      startPolling();
+    } catch (err) {
+      setError(err.message);
+      if (err.data?.status) setStatus(err.data.status);
     }
-
-    setStatus(data.status);
-    startPolling();
   }
 
   const running = Boolean(status?.running);

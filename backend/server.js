@@ -25,9 +25,25 @@ process.on("uncaughtException", (err) => {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || "127.0.0.1";
 
-app.use(cors());
-app.use(express.json());
+// This app has no login and holds personal data (your profile list,
+// tags, downloaded photos), so it shouldn't be reachable from anywhere
+// but this machine's own frontend dev server:
+// - Binding to 127.0.0.1 instead of the default (all interfaces) means
+//   nothing else on the same network can even open a connection to it.
+// - Restricting CORS to the Vite dev server's own origin means a
+//   malicious page open in another browser tab can't call this API
+//   from JavaScript and read or delete your data.
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+
+app.use(cors({ origin: FRONTEND_ORIGIN }));
+
+// Default is 100kb, far too small for a custom profile photo sent as a
+// base64 data URL (POST /api/profiles/:username/photo) — base64 also
+// inflates the raw file size by roughly a third, so this needs more
+// headroom than the 8MB photo-size cap alone would suggest.
+app.use(express.json({ limit: "12mb" }));
 
 ensureDB();
 
@@ -38,6 +54,6 @@ app.use("/api/tags", tagsRoutes);
 app.use("/api/import", importRoutes);
 app.use("/api/database", databaseRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Backend running on http://${HOST}:${PORT}`);
 });

@@ -2,6 +2,7 @@ import React from "react";
 import { useState } from "react";
 
 import PhotoRefreshPanel from "../components/dashboard/PhotoRefreshPanel";
+import { apiFetch } from "../utils/api";
 
 export default function DashboardPage({
   profiles,
@@ -19,15 +20,12 @@ export default function DashboardPage({
 
     setResetError("");
 
-    const response = await fetch("/api/database/reset", { method: "POST" });
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      setResetError(data.error || "Could not reset the database");
-      return;
+    try {
+      await apiFetch("/api/database/reset", { method: "POST" });
+      await onRefresh();
+    } catch (err) {
+      setResetError(err.message);
     }
-
-    await onRefresh();
   }
 
   return (
