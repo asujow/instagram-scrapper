@@ -154,4 +154,3 @@ backend/data/db.json
 # Downloaded profile photos (local data, not versioned)
 backend/data/images/*
 !backend/data/images/.gitkeep
-backend/data/db.json

@@ -27,6 +27,13 @@ const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
  * block deleting/renaming the profile itself.
  */
 function deleteProfileImages(username) {
+  // Defense in depth: every caller today only ever passes a username
+  // that's already in the DB (so already valid), but this function
+  // builds filesystem paths from it — if that ever changes (a new
+  // caller, a route that forwards a raw req.params value), this stops
+  // it from ever touching a path outside IMAGES_DIR.
+  if (!isValidUsername(username)) return;
+
   let files;
 
   try {
@@ -385,8 +392,12 @@ router.put("/:username/username", (req, res) => {
     const { username } = req.params;
     const { newUsername } = req.body || {};
 
-    if (!isValidUsername(newUsername)) {
-      return res.status(400).json({ error: "Invalid new username" });
+    // Both ends of the rename get used in filesystem paths below
+    // (oldPath/newPath) — validate the current username too, not just
+    // the new one, even though in practice it always came from a
+    // profile already in the DB (so already valid).
+    if (!isValidUsername(username) || !isValidUsername(newUsername)) {
+      return res.status(400).json({ error: "Invalid username" });
     }
 
     const normalized = newUsername.trim().toLowerCase();
@@ -455,6 +466,13 @@ router.post("/:username/photo", (req, res) => {
   try {
     const { username } = req.params;
     const { dataUrl } = req.body || {};
+
+    // username ends up directly in a filesystem write path below —
+    // validate the shape before it ever gets there, the same way the
+    // import routes already do (see utils/db.js for why).
+    if (!isValidUsername(username)) {
+      return res.status(400).json({ error: "Invalid username" });
+    }
 
     const db = readDB();
     const profile = db.profiles.find((p) => p.username === username);
